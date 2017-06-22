@@ -152,6 +152,8 @@ shinyServer(
       ## READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
       file.copy(from=paste0("www/modelparameter/Zea_mays_4_Leitner_2014.rparam"), to="www/param.rparam", overwrite = T)
       file.copy(from=paste0("www/modelparameter/Zea_mays_4_Leitner_2014.pparam"), to="www/param.pparam", overwrite = T)
+      #file.copy(from=paste0("www/modelparameter/Zea_maize.rparam"), to="www/param.rparam", overwrite = T)
+      #file.copy(from=paste0("www/modelparameter/Zea_maize.pparam"), to="www/param.pparam", overwrite = T)
       fileName <- 'www/param.rparam'
       param <- read_file(fileName)
       
@@ -235,28 +237,28 @@ shinyServer(
       
 
       
-      # Connect the nodals to the first node
-      first <- rootsystem[rootsystem$node1ID == 0,]
-      nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
-      for(no in nodals_ids){
-        temp <- rootsystem[rootsystem$branchID == no][1]
-        # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
-        # 
-        connection <- data.frame(node1ID = 0,
-                                 node2ID = temp$node1ID,
-                                 branchID = temp$branchID,
-                                 x1 = first$x1, y1 = first$y1, z1 = first$z1,
-                                 x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
-                                 radius = temp$radius,
-                                 length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
-                                 R = 0, G = 0, B = 0,
-                                 time = temp$time,
-                                 type = temp$type)
-        rootsystem <- rbind(rootsystem, connection)
-      }
-      rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
-      
-      
+      # # Connect the nodals to the first node
+      # first <- rootsystem[rootsystem$node1ID == 0,]
+      # nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
+      # for(no in nodals_ids){
+      #   temp <- rootsystem[rootsystem$branchID == no][1]
+      #   # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
+      #   # 
+      #   connection <- data.frame(node1ID = 0,
+      #                            node2ID = temp$node1ID,
+      #                            branchID = temp$branchID,
+      #                            x1 = first$x1, y1 = first$y1, z1 = first$z1,
+      #                            x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
+      #                            radius = temp$radius,
+      #                            length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
+      #                            R = 0, G = 0, B = 0,
+      #                            time = temp$time,
+      #                            type = temp$type)
+      #   rootsystem <- rbind(rootsystem, connection)
+      # }
+      # rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
+      # 
+      # 
       
       # setwd("../")
       
@@ -356,27 +358,27 @@ shinyServer(
         rootsystem <- fread("www/rootsystem.txt", header = T)
         # setwd("../")
         
-        # Connect the nodals to the first node
-        first <- rootsystem[rootsystem$node1ID == 0,]
-        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
-        for(no in nodals_ids){
-          temp <- rootsystem[rootsystem$branchID == no][1]
-          # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
-          # 
-          connection <- data.frame(node1ID = 0,
-                                   node2ID = temp$node1ID,
-                                   branchID = temp$branchID,
-                                   x1 = first$x1, y1 = first$y1, z1 = first$z1,
-                                   x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
-                                   radius = temp$radius,
-                                   length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
-                                   R = 0, G = 0, B = 0,
-                                   time = temp$time,
-                                   type = temp$type)
-          rootsystem <- rbind(rootsystem, connection)
-        }
-        rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
-        
+        # # Connect the nodals to the first node
+        # first <- rootsystem[rootsystem$node1ID == 0,]
+        # nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
+        # for(no in nodals_ids){
+        #   temp <- rootsystem[rootsystem$branchID == no][1]
+        #   # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
+        #   # 
+        #   connection <- data.frame(node1ID = 0,
+        #                            node2ID = temp$node1ID,
+        #                            branchID = temp$branchID,
+        #                            x1 = first$x1, y1 = first$y1, z1 = first$z1,
+        #                            x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
+        #                            radius = temp$radius,
+        #                            length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
+        #                            R = 0, G = 0, B = 0,
+        #                            time = temp$time,
+        #                            type = temp$type)
+        #   rootsystem <- rbind(rootsystem, connection)
+        # }
+        # rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
+        # 
         
         
         conductivities <- read_csv("www/conductivities.csv")
