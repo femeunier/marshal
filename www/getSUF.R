@@ -1,12 +1,10 @@
-
-
 getSUF <- function(table_data, table_cond){
   ####################################################
   #	Calculates Couvreur Macroscopic parameters   #
   ####################################################
   # F?licien Meunier, 06/2017
   # 
-  # table_data <- rootsystemfread("www/rootsystem.txt", header = T)
+  # table_data <- rootsystem table_data <- fread("www/rootsystem.txt", header = T)
   # setwd("../")
   
   # table_cond <- read_csv("www/conductivities.csv")
@@ -56,8 +54,8 @@ getSUF <- function(table_data, table_cond){
   }
   
   # Combination of hydraulics and geomitric properties
-  kappa=sqrt(pi*r*kr*kx)  # kappa
-  tau=sqrt(pi*r*kr/kx)    # tau
+  kappa=sqrt(2*pi*r*kr*kx)  # kappa
+  tau=sqrt(2*pi*r*kr/kx)    # tau
   
   Psi_sr=Psi_sr_homogeneous*matrix(1,Nseg,1) # Soil-root potential for each segment
   
@@ -99,6 +97,7 @@ getSUF <- function(table_data, table_cond){
   columns=c(columns,matrix(1,Nseg,1))
   values=c(values,-Psi_sr*kappa*tanh(tau*l/2))
   
+  
   x = mapply(values,FUN=as.numeric)
   B <- sparseMatrix(rows, columns, x = x) # Assignates values to specific locations
   
@@ -107,7 +106,7 @@ getSUF <- function(table_data, table_cond){
   prev_collar=(prev==0)
 
   b[prev_collar] = b[prev_collar] - (Psi_collar * (kappa[prev_collar] / sinh(tau[prev_collar] * l[prev_collar])))
-  
+
   ####################################################
   # Compute solution
   
@@ -119,19 +118,20 @@ getSUF <- function(table_data, table_cond){
   Jr=2*kappa*tanh(tau*l/2)*(Psi_sr-(Psi_proximal+Psi_basal)/2) # Total radial flow
   
   
-  remove(a, b, A, B)
+  #remove(a, b, A, B)
   
   # Macroscopic solution
   Tact=sum(Jr) 		 # Actual transpiration
   SUF=Jr/Tact  		 # SUF = normalized uptake
   Krs=Tact/abs(Psi_sr_homogeneous-Psi_collar) # Total root system conductance
   
-  SUF[SUF < 0] <- 10e-10
+  print(range(Jr))
+  
+  #SUF[SUF < 10e-15] <- 10e-8
   
   print(Krs)
   print(Tact)
   print(Psi_basal[1])
-  
   
   ####################################################
   return(list(suf=log10(SUF), suf1 = SUF, kr = log10(kr), kx = log10(kx), tact=Tact, krs=Krs))
