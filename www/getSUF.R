@@ -122,9 +122,9 @@ getSUF <- function(table_data, table_cond){
   prev_temp=prev	
   prev_temp[prev==0]=1;
   Psi_proximal=Psi_basal[prev_temp] # Psi_proximal = Psi_basal of the mother segment
-  Psi_proximal[prev_collar]=Psi_collar;
+  Psi_proximal[prev_collar]=Psi_collar; 
   Jr=2*kappa*tanh(tau*l/2)*(Psi_sr-(Psi_proximal+Psi_basal)/2) # Total radial flow
-  Jxl=kappa*((Psi_basal-Psi_sr)/sinh(tau*l)-(Psi_proximal-Psi_sr)/tanh(tau*l));
+  Jxl=kappa*((Psi_basal-Psi_sr)/sinh(tau*l)-(Psi_proximal-Psi_sr)/tanh(tau*l)); # Axial flow at the top of the segments
   
   remove(a, b, A, B)
   
