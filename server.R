@@ -33,50 +33,14 @@ shinyServer(
     # Sliders for the root system SUF
     observe({
       if(is.null(rs$rootsystem)){return()}
-      sel <- round(quantile(rs$rootsystem$suf, c(.001, .999), na.rm = T), 2)
-      print(sel)
+      sel <- round(quantile(rs$rootsystem$suf, c(.01, .99), na.rm = T), 2)
       lim <- round(range(rs$rootsystem$suf, na.rm = T), 2)
-      print(lim)
       if(lim[1] == -Inf) lim[1] <- sel[1]
-      print(lim)
-      print("--------")
-      updateSliderInput(session, "sufrange", min=lim[1], max=lim[2], value=sel)
+      updateSliderInput(session, "sufrange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
     })
     
     
-    # Sliders for the conductivities
-    observe({
-      if(is.null(rs$conductivities)){return()}
-      temp1 <- filter(rs$conductivities, order == input$roottype1)
-      
-      temp <- filter(temp1, type == "kr")
-      
-      updateSliderInput(session, "x1", value=c(temp$x[1], temp$x[2]))
-      updateSliderInput(session, "x2", value=c(temp$x[3], temp$x[4]))
-    
-      y1 <- temp$y
-      rs$fact1 <- round(1/min(y1))
-      y1 <- round(y1 * rs$fact1)
-
-      print(y1)
-      
-      updateSliderInput(session, "y1", value=y1[1], min=min(y1), max=max(y1))
-      updateSliderInput(session, "y2", value=y1[3], min=min(y1), max=max(y1))
-      
-      temp <- filter(temp1, type == "kx")
-      updateSliderInput(session, "x1x", value=c(temp$x[1], temp$x[2]))
-      updateSliderInput(session, "x2x", value=c(temp$x[3], temp$x[4]))
-      
-      y1 <- temp$y
-      rs$fact2 <- round(1/min(y1))
-      y1 <- round(y1 * rs$fact2)
-      
-      updateSliderInput(session, "y1x", value=y1[1], min=min(y1), max=max(y1))
-      updateSliderInput(session, "y2x", value=y1[3], min=min(y1), max=max(y1))      
-      rs$edited <- input$roottype1
-
-    })    
-    
+    # Get the click inside the conductivity graph
     output$click_info <- renderPrint({
       if(is.null(rs$conductivities)){return()}
       # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
@@ -447,22 +411,7 @@ shinyServer(
         }
         rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
         
-        
-        
-        # Connect the nodals to the first node
-        first <- rootsystem[rootsystem$node1ID == 0,]
-        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
-        for(no in nodals_ids){
-          temp <- rootsystem[rootsystem$branchID == no][1]
-          connection <- temp
-          connection$node1ID <- 0
-          connection$node2ID <- temp$node1ID
-          rootsystem <- rbind(rootsystem, connection)
-        }
-        rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
-
-        conductivities <- read_csv("www/conductivities.csv")
-        
+        conductivities <- rs$conductivities
         hydraulics <- getSUF(rootsystem, conductivities)
         
         rootsystem$suf <- as.vector(hydraulics$suf)
@@ -496,6 +445,9 @@ shinyServer(
         geom_point(size = 4) + 
         geom_point(colour="white") +
         theme_classic() + 
+        xlab("Distance from the tip (cm)") + 
+        ylab("Conductivity / conductance") + 
+        theme(text = element_text(size=14))+
         facet_grid(type~., scales = "free")
       pl
     })
@@ -512,7 +464,7 @@ shinyServer(
         plot <- plot + 
           geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
                                           colour=suf), alpha=0.9, size=1.2) +
-          scale_colour_gradientn(colours=cscale3, 
+          scale_colour_gradientn(colours=rev(heat.colors(10)), 
                                  name = "Standart uptake fraction [log]",
                                  limits = input$sufrange / scale_factor) 
       }else if(input$plotroottype == 3){
