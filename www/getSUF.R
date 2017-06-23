@@ -6,7 +6,8 @@ getSUF <- function(table_data, table_cond){
   ####################################################
   # F?licien Meunier, 06/2017
   # 
-  # table_data <- rootsystemfread("www/rootsystem.txt", header = T)
+  # table_data <- rootsystem
+  # table_data <-  fread("www/rootsystem2.txt", header = T)
   # setwd("../")
   
   # table_cond <- read_csv("www/conductivities.csv")

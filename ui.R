@@ -12,15 +12,9 @@ shinyUI(fluidPage(
   # Sidebar with a Simulations outputs
   fluidRow(
     column(3, 
-      
-      tabsetPanel(
-        tabPanel("Architecture",
-              
+    
           wellPanel(
-            helpText("Update root system parameters"),
-            actionButton(inputId = "updateParams", label="Update root system", icon("rocket")),
-            downloadButton("downloadParams", ""),
-            tags$hr(),  
+ 
             # h4("Update root parameters"),
             selectInput("roottype", label = "A. Select root type", choices = c("Please load datafile")), # updated with the datafile
             selectInput("parameter", label = "Select parameter to change", choices = c("Please load datafile")), # updated with the datafile
@@ -35,24 +29,38 @@ shinyUI(fluidPage(
             selectInput("parameter2", label = "3. Select plant parameter to change", choices = c("Please load datafile")), # updated with the datafile
             sliderInput("value2", "Parameter value:", min=10, max=20, value=10),
             strong(htmlOutput("plantTitle")),
-            htmlOutput("plantText")
-          )
+            htmlOutput("plantText"),
+            tags$hr(),             
+            actionButton(inputId = "updateParams", label="Update root system", icon("refresh")),
+            downloadButton("downloadParams", "")
+          ),
             
-        ),
-        tabPanel("Conductivities",
-           wellPanel(
-             selectInput("roottype1", label = "Select root type", choices = c("Please load datafile")) # updated with the datafile
-             
-           )
-                 
-        )
-      ),
+   
     tags$hr(),
     img(src='logo.jpg', align = "left", width="80%")
     ),
     column(3, 
       h3("Conductivities"),
-      plotOutput("rootConductivities", height = "400px")
+      tags$hr(),
+      selectInput("roottype1", label = "Select root type", choices = c("Please load datafile")), # updated with the datafile
+      plotOutput("rootConductivities", 
+                 height = "400px",
+                 click = "plot1_click"
+                 ),
+      verbatimTextOutput("click_info"),
+      fluidRow(
+        column(4, 
+          textInput("x_input", "X value")
+        ),
+        column(4,
+          textInput("y_input", "Y value")
+        ),
+        column(4,
+          actionButton(inputId = "updateCond", label="Update", icon("refresh"))
+        )
+        
+      )
+      
     ),
     
     # Show a plot of the generated distribution
@@ -65,7 +73,7 @@ shinyUI(fluidPage(
                           selectInput("plotroottype", label = "What to display", choices = c("Root types" = 1, 
                                                                                              "Standart uptake fraction" = 2,
                                                                                              "Radial conductivity" = 3,
-                                                                                             "Axial condicutance" = 4), selected=2) # updated with the datafile
+                                                                                             "Axial conductance" = 4), selected=2) # updated with the datafile
                         ),
                         column(6,
                           conditionalPanel(

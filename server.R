@@ -12,7 +12,10 @@ shinyServer(
                          plot=NULL,
                          conductivities = NULL,
                          krs = NULL,
-                         tat = NULL)
+                         tat = NULL,
+                         edited = NULL,
+                         fact1 = NULL,
+                         fact2 = NULL)
     scale_factor <- 1
     
     
@@ -27,7 +30,7 @@ shinyServer(
       
     })  
 
-    # Sliders for the walls
+    # Sliders for the root system SUF
     observe({
       if(is.null(rs$rootsystem)){return()}
       sel <- round(quantile(rs$rootsystem$suf, c(.001, .999), na.rm = T), 2)
@@ -41,6 +44,131 @@ shinyServer(
     })
     
     
+    # Sliders for the conductivities
+    observe({
+      if(is.null(rs$conductivities)){return()}
+      temp1 <- filter(rs$conductivities, order == input$roottype1)
+      
+      temp <- filter(temp1, type == "kr")
+      
+      updateSliderInput(session, "x1", value=c(temp$x[1], temp$x[2]))
+      updateSliderInput(session, "x2", value=c(temp$x[3], temp$x[4]))
+    
+      y1 <- temp$y
+      rs$fact1 <- round(1/min(y1))
+      y1 <- round(y1 * rs$fact1)
+
+      print(y1)
+      
+      updateSliderInput(session, "y1", value=y1[1], min=min(y1), max=max(y1))
+      updateSliderInput(session, "y2", value=y1[3], min=min(y1), max=max(y1))
+      
+      temp <- filter(temp1, type == "kx")
+      updateSliderInput(session, "x1x", value=c(temp$x[1], temp$x[2]))
+      updateSliderInput(session, "x2x", value=c(temp$x[3], temp$x[4]))
+      
+      y1 <- temp$y
+      rs$fact2 <- round(1/min(y1))
+      y1 <- round(y1 * rs$fact2)
+      
+      updateSliderInput(session, "y1x", value=y1[1], min=min(y1), max=max(y1))
+      updateSliderInput(session, "y2x", value=y1[3], min=min(y1), max=max(y1))      
+      rs$edited <- input$roottype1
+
+    })    
+    
+    output$click_info <- renderPrint({
+      if(is.null(rs$conductivities)){return()}
+      # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
+      # were a base graphics plot, we'd need those.
+      temp <- filter(rs$conductivities, order == input$roottype1)
+      sel <- nearPoints(temp, input$plot1_click)
+      updateTextInput(session, "x_input", value=sel$x)
+      updateTextInput(session, "y_input", value=sel$y)
+      paste0(sel$order, " / ", sel$type)
+    })
+    
+    observeEvent(input$updateCond, {
+      temp <- filter(rs$conductivities, order == input$roottype1)
+      sel <- nearPoints(temp, input$plot1_click)
+      
+      conds <- rs$conductivities
+      rootsystem <- rs$rootsystem
+      
+      conds$x[conds$id == sel$id] <- as.numeric(input$x_input)
+      conds$y[conds$id == sel$id] <- as.numeric(input$y_input)
+
+      
+      hydraulics <- getSUF(rootsystem, conds)
+
+      rootsystem$suf <- as.vector(hydraulics$suf)
+      rootsystem$suf1 <- as.vector(hydraulics$suf1)
+      rootsystem$kx <- hydraulics$kx
+      rootsystem$kr <- hydraulics$kr
+
+      rs$rootsystem <- rootsystem
+      rs$conductivities <- conds
+    })
+      
+    
+    # observe({
+    #     updateTextInput(session, "x_input", value=input$plot1_click$x)
+    #     updateTextInput(session, "y_input", value=input$plot1_click$y)
+    # })
+    # output$x_input <- renderText({
+    #   # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
+    #   # were a base graphics plot, we'd need those.
+    #   temp <- filter(rs$conductivities, order == input$roottype1)
+    #   nearPoints(temp, input$plot1_click, addDist = TRUE)$x
+    # })    
+    # 
+    # output$y_input <- renderText({
+    #   # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
+    #   # were a base graphics plot, we'd need those.
+    #   temp <- filter(rs$conductivities, order == input$roottype1)
+    #   nearPoints(temp, input$plot1_click, addDist = TRUE)$y
+    # })        
+    
+    # observeEvent(input$updateCond, {
+    #   if(is.null(rs$conductivities)){return()}
+    #   if(is.null(input$y1)){return()}
+    #   if(is.null(input$y1x)){return()}
+    #   if(rs$edited != input$roottype1){return()}
+    # 
+    #   conds <- rs$conductivities
+    #   rootsystem <- rs$rootsystem
+    #   
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][1] <- input$x1[1]
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][2] <- input$x1[2]
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][3] <- input$x2[1]
+    # 
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][1] <- input$y1 / rs$fact1
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][2] <- input$y1 / rs$fact1
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][3] <- input$y2 / rs$fact1
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][4] <- input$y2 / rs$fact1
+    #   
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][1] <- input$x1x[1]
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][2] <- input$x1x[2]
+    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][3] <- input$x2x[1]
+    # 
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][1] <- input$y1x / rs$fact2
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][2] <- input$y1x / rs$fact2
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][3] <- input$y2x / rs$fact2
+    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][4] <- input$y2x  / rs$fact2
+    #   
+    #   
+    #   print(conds)
+    #   
+    #   hydraulics <- getSUF(rootsystem, conds)
+    #   
+    #   rootsystem$suf <- as.vector(hydraulics$suf)
+    #   rootsystem$suf1 <- as.vector(hydraulics$suf1)
+    #   rootsystem$kx <- hydraulics$kx
+    #   rootsystem$kr <- hydraulics$kr
+    #   
+    #   rs$rootsystem <- rootsystem
+    #   rs$conductivities <- conds
+    # })
     
     # For the root paramerers
     observe({
@@ -232,16 +360,16 @@ shinyServer(
       system("chmod 777 www/a.out")
       system("www/a.out")  
       rootsystem <- fread("www/rootsystem.txt", header = T)
+      # rootsystem2 <- fread("www/rootsystem2.txt", header = T)
       
-
       
-      # Connect the nodals to the first node
-      first <- rootsystem[rootsystem$node1ID == 0,]
-      nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
+      
+      # first <- rootsystem[rootsystem$node1ID == 0,]
+      nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
       for(no in nodals_ids){
         temp <- rootsystem[rootsystem$branchID == no][1]
         # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
-        # 
+        #
         connection <- data.frame(node1ID = 0,
                                  node2ID = temp$node1ID,
                                  branchID = temp$branchID,
@@ -255,7 +383,7 @@ shinyServer(
         rootsystem <- rbind(rootsystem, connection)
       }
       rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
-      
+
       
       
       # setwd("../")
@@ -285,6 +413,7 @@ shinyServer(
     
         
     observeEvent(input$updateParams, {
+    # observe({
         
         if(is.null(rs$dataset)) return()
       
@@ -357,12 +486,11 @@ shinyServer(
         # setwd("../")
         
         # Connect the nodals to the first node
-        first <- rootsystem[rootsystem$node1ID == 0,]
-        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
+        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
         for(no in nodals_ids){
           temp <- rootsystem[rootsystem$branchID == no][1]
           # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
-          # 
+          #
           connection <- data.frame(node1ID = 0,
                                    node2ID = temp$node1ID,
                                    branchID = temp$branchID,
@@ -379,6 +507,18 @@ shinyServer(
         
         
         
+        # Connect the nodals to the first node
+        first <- rootsystem[rootsystem$node1ID == 0,]
+        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4])
+        for(no in nodals_ids){
+          temp <- rootsystem[rootsystem$branchID == no][1]
+          connection <- temp
+          connection$node1ID <- 0
+          connection$node2ID <- temp$node1ID
+          rootsystem <- rbind(rootsystem, connection)
+        }
+        rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
+
         conductivities <- read_csv("www/conductivities.csv")
         
         hydraulics <- getSUF(rootsystem, conductivities)
@@ -387,12 +527,9 @@ shinyServer(
         rootsystem$suf1 <- as.vector(hydraulics$suf1)
         rootsystem$kx <- hydraulics$kx
         rootsystem$kr <- hydraulics$kr
-
-        
-        
         
         # Read the conductivity file
-        rs$conductivities <- read_csv("www/conductivities.csv")
+        rs$conductivities <- conductivities
         rs$rootsystem <- rootsystem
         rs$dataset <- dataset
         rs$plant <- plant
@@ -411,11 +548,14 @@ shinyServer(
 
     output$rootConductivities <- renderPlot({
       temp <- filter(rs$conductivities, order == input$roottype1) 
-      ggplot(temp, aes(x, y, colour=type)) + 
-        geom_line() + 
+      temp$x[temp$x > 50] <- 50
+      pl <- ggplot(temp, aes(x, y, colour=type)) + 
+        geom_line(size=2) + 
+        geom_point(size = 4) + 
+        geom_point(colour="white") +
         theme_classic() + 
         facet_grid(type~., scales = "free")
-      
+      pl
     })
       
     
@@ -478,7 +618,7 @@ shinyServer(
         dens <- ddply(mydata, .(z1, type), summarise, root = sum(length))  
         yl <- "total root length (cm)" 
       }else if(input$plotdensitytype == 2){
-        dens <- ddply(mydata, .(z1, type), summarise, root = sum(-suf1))
+        dens <- ddply(mydata, .(z1, type), summarise, root = sum(suf1))
         yl <- "standart uptake fraction"
       }
       
