@@ -128,12 +128,7 @@ getSUF <- function(table_data, table_cond){
   Jr=2*kappa*tanh(tau*l/2)*(Psi_sr-(Psi_proximal+Psi_basal)/2) # Total radial flow
   Jxl=kappa*((Psi_basal-Psi_sr)/sinh(tau*l)-(Psi_proximal-Psi_sr)/tanh(tau*l)); # Axial flow at the top of the segments
   
-  Psi_sr_hetero=Psi_sr
-  Psi_sr_hetero[z>-30]=Psi_sr_heterogeneous
-  Tact_hetero=Tact/2
-  Psi_sr_eq=sum(SUF*Psi_sr_hetero)
-  Jr_hetero = Krs*SUF*(Psi_sr_hetero-Psi_sr_eq+Tact_hetero/Krs)  
-  
+
   remove(a, b, A, B)
   
   # Macroscopic solution
@@ -143,11 +138,18 @@ getSUF <- function(table_data, table_cond){
   
   SUF[SUF < 0] <- 10e-10
   
+  Psi_sr_hetero=Psi_sr
+  Psi_sr_hetero[z>-30]=Psi_sr_heterogeneous
+  Tact_hetero=Tact/2
+  Psi_sr_eq=sum(SUF*Psi_sr_hetero)
+  Jr_hetero = Krs*SUF*(Psi_sr_hetero-Psi_sr_eq+Tact_hetero/Krs)  
+  
+  
   print(Krs)
   print(Tact)
   print(Psi_basal[1])
   
   
   ####################################################
-  return(list(suf=log10(SUF), suf1 = SUF, kr = log10(kr), kx = log10(kx), tact=Tact, krs=Krs))
+  return(list(suf=log10(SUF), suf1 = SUF, kr = log10(kr), kx = log10(kx), tact=Tact, krs=Krs, jr=Jr, psi = Psi_basal, jxl = Jxl))
 }

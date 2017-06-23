@@ -39,6 +39,33 @@ shinyServer(
       updateSliderInput(session, "sufrange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
     })
     
+    # Sliders for the root system potentials
+    observe({
+      if(is.null(rs$rootsystem)){return()}
+      sel <- round(quantile(rs$rootsystem$psi, c(.01, .99), na.rm = T), 2)
+      lim <- round(range(rs$rootsystem$psi, na.rm = T), 2)
+      if(lim[1] == -Inf) lim[1] <- sel[1]
+      updateSliderInput(session, "psirange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
+    }) 
+    
+    # Sliders for the root system axial fluxes
+    observe({
+      if(is.null(rs$rootsystem)){return()}
+      sel <- round(quantile(rs$rootsystem$jxl, c(.01, .99), na.rm = T), 2)
+      lim <- round(range(rs$rootsystem$jxl, na.rm = T), 2)
+      if(lim[1] == -Inf) lim[1] <- sel[1]
+      updateSliderInput(session, "jxlrange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
+    })     
+    
+    # Sliders for the root system radial fluxes
+    observe({
+      if(is.null(rs$rootsystem)){return()}
+      sel <- round(quantile(rs$rootsystem$jr, c(.01, .99), na.rm = T), 2)
+      lim <- round(range(rs$rootsystem$jr, na.rm = T), 2)
+      if(lim[1] == -Inf) lim[1] <- sel[1]
+      updateSliderInput(session, "jrrange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
+    })     
+    
     
     # Get the click inside the conductivity graph
     output$click_info <- renderPrint({
@@ -66,10 +93,13 @@ shinyServer(
       hydraulics <- getSUF(rootsystem, conds)
 
       rootsystem$suf <- as.vector(hydraulics$suf)
+      rootsystem$jr <- as.vector(hydraulics$jr)
+      rootsystem$psi <- as.vector(hydraulics$psi)
       rootsystem$suf1 <- as.vector(hydraulics$suf1)
       rootsystem$kx <- hydraulics$kx
       rootsystem$kr <- hydraulics$kr
-
+      rootsystem$jxl <- as.vector(hydraulics$jxl)
+      
       rs$rootsystem <- rootsystem
       rs$conductivities <- conds
       rs$krs <- hydraulics$krs
@@ -303,7 +333,9 @@ shinyServer(
       rootsystem$suf1 <- as.vector(hydraulics$suf1)
       rootsystem$kx <- hydraulics$kx
       rootsystem$kr <- hydraulics$kr
-      
+      rootsystem$jr <- as.vector(hydraulics$jr)
+      rootsystem$psi <- as.vector(hydraulics$psi)
+      rootsystem$jxl <- as.vector(hydraulics$jxl)
       
       rs$conductivities <- conductivities
       rs$rootsystem <- rootsystem
@@ -418,6 +450,10 @@ shinyServer(
         rootsystem$suf1 <- as.vector(hydraulics$suf1)
         rootsystem$kx <- hydraulics$kx
         rootsystem$kr <- hydraulics$kr
+        rootsystem$jr <- as.vector(hydraulics$jr)
+        rootsystem$psi <- as.vector(hydraulics$psi)
+        rootsystem$jxl <- as.vector(hydraulics$jxl)
+        
         
         # Read the conductivity file
         rs$conductivities <- conductivities
@@ -451,11 +487,16 @@ shinyServer(
         theme_classic() + 
         xlab("Distance from the tip (cm)") + 
         ylab("Conductivity / conductance") + 
-        theme(text = element_text(size=14))+
-        facet_grid(type~., scales = "free")
+        facet_grid(type~., scales = "free") +
+        theme(text = element_text(size=14),
+              panel.background = element_rect(fill = "transparent"), # or theme_blank()
+              plot.background = element_rect(fill = "transparent")
+        )
       pl
-    })
+    }, bg="transparent")
       
+    
+    # Plot the root system
     
     output$rootPlot <- renderPlot({
       
@@ -464,28 +505,55 @@ shinyServer(
       
       mydata <- rs$rootsystem
 
-      if(input$plotroottype == 2){
+      if(input$plotroottype == 1){
+        plot <- plot + 
+        geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, colour=factor(type)), alpha=0.9, size=1.2)
+      
+      }else if(input$plotroottype == 2){
         plot <- plot + 
           geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
                                           colour=suf), alpha=0.9, size=1.2) +
           scale_colour_gradientn(colours=rev(heat.colors(10)), 
                                  name = "Standart uptake fraction [log]",
-                                 limits = input$sufrange / scale_factor) 
+                                 limits = input$sufrange) 
+      
       }else if(input$plotroottype == 3){
+        plot <- plot + 
+          geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
+                                          colour=psi), alpha=0.9, size=1.2) +
+          scale_colour_gradientn(colours=cscale3, 
+                                 name = "Water potential",
+                                 limits = input$psirange) 
+      
+      }else if(input$plotroottype == 4){
+        plot <- plot + 
+          geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
+                                          colour=jxl), alpha=0.9, size=1.2) +
+          scale_colour_gradientn(colours=cscale3, 
+                                 name = "Axial fluxes",
+                                 limits = input$jxlrange) 
+      
+      }else if(input$plotroottype == 5){
+        plot <- plot + 
+          geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
+                                          colour=jr), alpha=0.9, size=1.2) +
+          scale_colour_gradientn(colours=cscale3, 
+                                 name = "Radial fluxes",
+                                 limits = input$jrrange)         
+      
+      }else if(input$plotroottype == 6){
         plot <- plot + 
           geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
                                           colour=kr), alpha=0.9, size=1.2) +
           scale_colour_gradientn(colours=cscale3, 
                                  name = "Radial conductivity") 
-      }else if(input$plotroottype == 4){
+      
+      }else if(input$plotroottype == 7){
         plot <- plot + 
           geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, 
                                           colour=kx), alpha=0.9, size=1.2) +
           scale_colour_gradientn(colours=cscale3, 
                                  name = "Axial conductance") 
-      }else if(input$plotroottype == 1){        
-        plot <- plot + 
-          geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, colour=factor(type)), alpha=0.9, size=1.2)
       }
       plot <- plot + coord_fixed() +
         ylab("Depth (cm)") 
@@ -518,6 +586,15 @@ shinyServer(
       }else if(input$plotdensitytype == 2){
         dens <- ddply(mydata, .(z1, type), summarise, root = sum(suf1))
         yl <- "standart uptake fraction"
+      }else if(input$plotdensitytype == 3){
+        dens <- ddply(mydata, .(z1, type), summarise, root = sum(jr))
+        yl <- "Radial flow"
+      }else if(input$plotdensitytype == 4){
+        dens <- ddply(mydata, .(z1, type), summarise, root = sum(jxl))
+        yl <- "Axial flow"
+      }else if(input$plotdensitytype == 5){
+        dens <- ddply(mydata, .(z1, type), summarise, root = mean(psi))
+        yl <- "Mean water potential"
       }
       
       
