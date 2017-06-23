@@ -717,7 +717,11 @@ shinyServer(
       temp[1,] <- c("Total root length", round(sum(mydata$length)), "[cm]")
       temp[2,] <- c("Number of roots segments", length(mydata$length), "[-]")
       temp[3,] <- c("Maximal depth", round(-min(mydata$z1)), "[cm]")
-      temp[4,] <- c("Krs", rs$krs, "[-]")
+      
+      
+      p1 <- as.numeric(as.character(rs$krs))
+      p1 <- round(p1, regexpr('[1-9]', p1)[[1]]) 
+      temp[4,] <- c("Krs", p1, "[-]")
       
       temp
     })  

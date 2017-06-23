@@ -48,7 +48,7 @@ getSUF <- function(table_data, table_cond){
     y = table_cond$y[table_cond$order_id == od & table_cond$type == "kr"]
     x <- c(x, 5000)
     y <- c(y, y[length(y)])
-    print(x)
+
     xout = data.frame(seg_age[pos])
     temp=data.frame(approx(x,y,xout[,1]))
     kr[pos]=temp[,2]

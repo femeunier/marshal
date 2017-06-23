@@ -3,7 +3,7 @@ type	1
 name	First_order_root
 lb	0.5	0.05
 la	18.1	1.81
-ln	1	0.05
+ln	0.4	0.02
 lmax	180.1	18.01
 r	2.94	0.294
 a	0.13	0.013
