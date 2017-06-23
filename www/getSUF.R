@@ -18,13 +18,15 @@ getSUF <- function(table_data, table_cond){
   prev=table_data$node1ID 	  # mother segment
   l=table_data$length    	  # segment length
   r=table_data$radius    	  # segment radius
+  z=table_data$z2           # z-position
   order=table_data$type      # segment order
   seg_age= max(table_data$time) - table_data$time     # segment age
   
   Nseg=length(l)      	  # Total number of segment
   
-  Psi_sr_homogeneous=-300   # Homogeneous soil-root potential 
-  Psi_collar=-15000         # Collar potential
+  Psi_sr_homogeneous=-300      # Homogeneous soil-root potential 
+  Psi_sr_heterogeneous=-3000   # Heterogeneous soil-root potential 
+  Psi_collar=-15000            # Collar potential
   
   ####################################################
   # Interpolates kr,kx functions
@@ -125,6 +127,12 @@ getSUF <- function(table_data, table_cond){
   Psi_proximal[prev_collar]=Psi_collar; 
   Jr=2*kappa*tanh(tau*l/2)*(Psi_sr-(Psi_proximal+Psi_basal)/2) # Total radial flow
   Jxl=kappa*((Psi_basal-Psi_sr)/sinh(tau*l)-(Psi_proximal-Psi_sr)/tanh(tau*l)); # Axial flow at the top of the segments
+  
+  Psi_sr_hetero=Psi_sr
+  Psi_sr_hetero[z>-30]=Psi_sr_heterogeneous
+  Tact_hetero=Tact/2
+  Psi_sr_eq=sum(SUF*Psi_sr_hetero)
+  Jr_hetero = Krs*SUF*(Psi_sr_hetero-Psi_sr_eq+Tact_hetero/Krs)  
   
   remove(a, b, A, B)
   
