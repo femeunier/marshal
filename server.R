@@ -270,7 +270,7 @@ shinyServer(
       
       
       
-      # first <- rootsystem[rootsystem$node1ID == 0,]
+      first <- rootsystem[rootsystem$node1ID == 0,]
       nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
       for(no in nodals_ids){
         temp <- rootsystem[rootsystem$branchID == no][1]
@@ -438,6 +438,10 @@ shinyServer(
     # ----------------------------------------------------------------
 
     output$rootConductivities <- renderPlot({
+      
+      plot <- ggplot() +  theme_classic()
+      if(is.null(rs$conductivities)){return(plot)}
+      
       temp <- filter(rs$conductivities, order == input$roottype1) 
       temp$x[temp$x > 50] <- 50
       pl <- ggplot(temp, aes(x, y, colour=type)) + 
