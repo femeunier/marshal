@@ -108,67 +108,9 @@ shinyServer(
 
       rs$rootsystem <- rootsystem
       rs$conductivities <- conds
+      rs$krs <- hydraulics$krs
     })
       
-    
-    # observe({
-    #     updateTextInput(session, "x_input", value=input$plot1_click$x)
-    #     updateTextInput(session, "y_input", value=input$plot1_click$y)
-    # })
-    # output$x_input <- renderText({
-    #   # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
-    #   # were a base graphics plot, we'd need those.
-    #   temp <- filter(rs$conductivities, order == input$roottype1)
-    #   nearPoints(temp, input$plot1_click, addDist = TRUE)$x
-    # })    
-    # 
-    # output$y_input <- renderText({
-    #   # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
-    #   # were a base graphics plot, we'd need those.
-    #   temp <- filter(rs$conductivities, order == input$roottype1)
-    #   nearPoints(temp, input$plot1_click, addDist = TRUE)$y
-    # })        
-    
-    # observeEvent(input$updateCond, {
-    #   if(is.null(rs$conductivities)){return()}
-    #   if(is.null(input$y1)){return()}
-    #   if(is.null(input$y1x)){return()}
-    #   if(rs$edited != input$roottype1){return()}
-    # 
-    #   conds <- rs$conductivities
-    #   rootsystem <- rs$rootsystem
-    #   
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][1] <- input$x1[1]
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][2] <- input$x1[2]
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kr"][3] <- input$x2[1]
-    # 
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][1] <- input$y1 / rs$fact1
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][2] <- input$y1 / rs$fact1
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][3] <- input$y2 / rs$fact1
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kr"][4] <- input$y2 / rs$fact1
-    #   
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][1] <- input$x1x[1]
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][2] <- input$x1x[2]
-    #   conds$x[conds$order == input$roottype1 & conds$type == "kx"][3] <- input$x2x[1]
-    # 
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][1] <- input$y1x / rs$fact2
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][2] <- input$y1x / rs$fact2
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][3] <- input$y2x / rs$fact2
-    #   conds$y[conds$order == input$roottype1 & conds$type == "kx"][4] <- input$y2x  / rs$fact2
-    #   
-    #   
-    #   print(conds)
-    #   
-    #   hydraulics <- getSUF(rootsystem, conds)
-    #   
-    #   rootsystem$suf <- as.vector(hydraulics$suf)
-    #   rootsystem$suf1 <- as.vector(hydraulics$suf1)
-    #   rootsystem$kx <- hydraulics$kx
-    #   rootsystem$kr <- hydraulics$kr
-    #   
-    #   rs$rootsystem <- rootsystem
-    #   rs$conductivities <- conds
-    # })
     
     # For the root paramerers
     observe({
@@ -382,7 +324,7 @@ shinyServer(
                                  type = temp$type)
         rootsystem <- rbind(rootsystem, connection)
       }
-      rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
+      rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
 
       
       
@@ -503,7 +445,7 @@ shinyServer(
                                    type = temp$type)
           rootsystem <- rbind(rootsystem, connection)
         }
-        rootsystem <- rootsystem[order(rootsystem$branchID, rootsystem$node2ID, decreasing = F),]
+        rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
         
         
         
