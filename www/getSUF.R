@@ -64,8 +64,8 @@ getSUF <- function(table_data, table_cond){
   }
   
   # Combination of hydraulics and geomitric properties
-  kappa=sqrt(pi*r*kr*kx)  # kappa
-  tau=sqrt(pi*r*kr/kx)    # tau
+  kappa=sqrt(2*pi*r*kr*kx)  # kappa
+  tau=sqrt(2*pi*r*kr/kx)    # tau
   
   Psi_sr=Psi_sr_homogeneous*matrix(1,Nseg,1) # Soil-root potential for each segment
   
