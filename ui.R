@@ -11,9 +11,9 @@ shinyUI(fluidPage(
   
   # Sidebar with a Simulations outputs
   fluidRow(
-    column(3, 
-          h4("Root architecture"),
-          wellPanel(
+    column(4, 
+      tabsetPanel(
+        tabPanel("Root architecture",
  
             # h4("Update root parameters"),
             selectInput("roottype", label = "Select root type", choices = c("Please load datafile")), # updated with the datafile
@@ -33,39 +33,49 @@ shinyUI(fluidPage(
             tags$hr(),             
             actionButton(inputId = "updateParams", label="Update root system", icon("refresh"), style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
             downloadButton("downloadParams", "")
-          ),
-            
-   
-    tags$hr(),
-    img(src='logo.jpg', align = "left", width="80%")
-    ),
-    column(3, 
-      h4("Conductivities"),
-      wellPanel(
-        selectInput("roottype1", label = "Select root type", choices = c("Please load datafile")), # updated with the datafile
-        plotOutput("rootConductivities", 
-                   height = "300px",
-                   click = "plot1_click"
-                   ),
-        verbatimTextOutput("click_info"),
-        fluidRow(
-          column(4, 
-            textInput("x_input", "X value")
-          ),
-          column(4,
-            textInput("y_input", "Y value")
-          ),
-          column(4,
-            actionButton(inputId = "updateCond", label="", icon("refresh"), style="color: #fff; background-color: #337ab7; border-color: #2e6da4")
-          )
-          
+        ),
+        tabPanel("Root conductivities",
+            selectInput("roottype1", label = "Select root type", choices = c("Please load datafile")), # updated with the datafile
+            plotOutput("rootConductivities", 
+                       height = "300px",
+                       click = "plot1_click"
+                       ),
+            fluidRow(
+              column(4, 
+                textInput("x_input", "X value")
+              ),
+              column(4,
+                textInput("y_input", "Y value")
+              ),
+              column(4,
+                actionButton(inputId = "updateCond", label="", icon("refresh"), style="color: #fff; background-color: #337ab7; border-color: #2e6da4")
+              )
+            )
+        ),
+        tabPanel("Soil water potential",
+            plotOutput("soilPlot", 
+                       height = "500px",
+                       click = "plot2_click"
+            ),
+            fluidRow(
+              column(4, 
+                     textInput("x_input_soil", "Psi")
+              ),
+              column(4,
+                     textInput("y_input_soil", "Depth")
+              ),
+              column(4,
+                     actionButton(inputId = "updateSoil", label="", icon("refresh"), style="color: #fff; background-color: #337ab7; border-color: #2e6da4")
+              )
+            )        
         )
-      )
-      
+      ),
+      tags$hr(),
+      img(src='logo.jpg', align = "left", width="80%")      
     ),
     
     # Show a plot of the generated distribution
-    column(6,
+    column(8,
            tabsetPanel(
              tabPanel("Root system representation",
                       tags$hr(),
@@ -126,19 +136,19 @@ shinyUI(fluidPage(
                       tags$hr(),
                       fluidRow(
                         column(6,
-                               h3("What is CRootBox"),
-                               helpText("The focus of CRootBox is the simulation of different types of root architecture, and to provide a generic interface for coupling with arbitrary soil/environmental models, e.g., in order to determine the impact of specific root architectures on function."),
-                               h3("More about CRootBox"),
-                               helpText("This web interface only display basic capabilities of CRootBox. For more, check out the official webpage."),
+                               h3("What is MARSHAL"),
+                               helpText("The focus of MARSHAL "),
+                               h3("More about MARSHAL"),
+                               helpText("MARSHAL was built upon the works described here:"),
                                actionButton(inputId='ab1', label="CRootBox webpage", icon = icon("th"), onclick ="window.open('https://plant-root-soil-interactions-modelling.github.io/CRootBox/', '_blank')"),
-                               h3("How to cite CRootBox"),
-                               tags$strong("CRootBox: A structural-functional modelling framework for root systems."),
-                               helpText("A Schnepf, D Leitner, M Landl, G Lobet, T Hieu Mai, S Morandage, C Sheng, M Zörner, J Vanderborght, H Vereecken"),
+                               h3("How to cite MARSHAK"),
+                               tags$strong("Bla bla"),
+                               helpText("---"),
                                actionButton(inputId='ab1', label="View paper", icon = icon("flask"), onclick ="window.open('https://doi.org/10.1101/139980', '_blank')")                            
                                ),
                         column(6,
                                h3("Licence"),
-                               helpText("CRootBox is released under a GPL licence, which means that redistribution and use in source and binary forms, with or without modification, are permitted under the GNU General Public License v3 and provided that the following conditions are met:
+                               helpText("MARSHAL is released under a GPL licence, which means that redistribution and use in source and binary forms, with or without modification, are permitted under the GNU General Public License v3 and provided that the following conditions are met:
                                         
                                         1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
                                         

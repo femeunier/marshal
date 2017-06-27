@@ -12,12 +12,8 @@ shinyServer(
                          plot=NULL,
                          conductivities = NULL,
                          krs = NULL,
-                         tat = NULL,
-                         edited = NULL,
-                         fact1 = NULL,
-                         fact2 = NULL)
-    scale_factor <- 1
-    
+                         tact = NULL,
+                         soil = NULL)
     
     observe({
       fileName <- 'www/litterature.txt'
@@ -42,7 +38,7 @@ shinyServer(
     # Sliders for the root system potentials
     observe({
       if(is.null(rs$rootsystem)){return()}
-      sel <- round(quantile(rs$rootsystem$psi, c(.01, .99), na.rm = T), 2)
+      sel <- round(quantile(rs$rootsystem$psi, c(0, 1), na.rm = T), 2)
       lim <- round(range(rs$rootsystem$psi, na.rm = T), 2)
       if(lim[1] == -Inf) lim[1] <- sel[1]
       updateSliderInput(session, "psirange", min=lim[1], max=lim[2], value=c(sel[[1]],sel[[2]]))
@@ -67,8 +63,45 @@ shinyServer(
     })     
     
     
+    # Get the click inside the soil graph
+    observe({
+      if(is.null(rs$soil)){return()}
+      # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
+      # were a base graphics plot, we'd need those.
+      sel <- nearPoints(rs$soil, input$plot2_click)
+      updateTextInput(session, "x_input_soil", value=sel$psi)
+      updateTextInput(session, "y_input_soil", value=sel$z)
+      # paste0(sel$order, " / ", sel$type)
+    }) 
+    
+    observeEvent(input$updateSoil, {
+      soil <- rs$soil
+      sel <- nearPoints(soil, input$plot2_click)
+      
+      rootsystem <- rs$rootsystem
+      
+      soil$psi[soil$id == sel$id] <- as.numeric(input$x_input_soil)
+      soil$z[soil$id == sel$id] <- as.numeric(input$y_input_soil)
+      
+      
+      hydraulics <- getSUF(rootsystem, rs$conductivities, soil)
+      
+      rootsystem$suf <- as.vector(hydraulics$suf)
+      rootsystem$jr <- as.vector(hydraulics$jr)
+      rootsystem$psi <- as.vector(hydraulics$psi)
+      rootsystem$suf1 <- as.vector(hydraulics$suf1)
+      rootsystem$kx <- hydraulics$kx
+      rootsystem$kr <- hydraulics$kr
+      rootsystem$jxl <- as.vector(hydraulics$jxl)
+      rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
+      
+      rs$rootsystem <- rootsystem
+      rs$soil <- soil
+      rs$krs <- hydraulics$krs
+    })    
+    
     # Get the click inside the conductivity graph
-    output$click_info <- renderPrint({
+    observe({
       if(is.null(rs$conductivities)){return()}
       # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
       # were a base graphics plot, we'd need those.
@@ -76,8 +109,10 @@ shinyServer(
       sel <- nearPoints(temp, input$plot1_click)
       updateTextInput(session, "x_input", value=sel$x)
       updateTextInput(session, "y_input", value=sel$y)
-      paste0(sel$order, " / ", sel$type)
+      # paste0(sel$order, " / ", sel$type)
     })
+    
+    
     
     observeEvent(input$updateCond, {
       temp <- filter(rs$conductivities, order == input$roottype1)
@@ -90,7 +125,7 @@ shinyServer(
       conds$y[conds$id == sel$id] <- as.numeric(input$y_input)
 
       
-      hydraulics <- getSUF(rootsystem, conds)
+      hydraulics <- getSUF(rootsystem, conds, rs$soil)
 
       rootsystem$suf <- as.vector(hydraulics$suf)
       rootsystem$jr <- as.vector(hydraulics$jr)
@@ -99,6 +134,7 @@ shinyServer(
       rootsystem$kx <- hydraulics$kx
       rootsystem$kr <- hydraulics$kr
       rootsystem$jxl <- as.vector(hydraulics$jxl)
+      rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
       
       rs$rootsystem <- rootsystem
       rs$conductivities <- conds
@@ -325,8 +361,9 @@ shinyServer(
       # setwd("../")
       
       conductivities <- read_csv("www/conductivities.csv")
+      soil <- read_csv("www/soil.csv")
       
-      hydraulics <- getSUF(rootsystem, conductivities)
+      hydraulics <- getSUF(rootsystem, conductivities, soil, hetero = F)
       
 
       rootsystem$suf <- as.vector(hydraulics$suf)
@@ -336,6 +373,7 @@ shinyServer(
       rootsystem$jr <- as.vector(hydraulics$jr)
       rootsystem$psi <- as.vector(hydraulics$psi)
       rootsystem$jxl <- as.vector(hydraulics$jxl)
+      rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
       
       rs$conductivities <- conductivities
       rs$rootsystem <- rootsystem
@@ -344,6 +382,7 @@ shinyServer(
       rs$params <- params
       rs$krs <- hydraulics$krs
       rs$tact <- hydraulics$tact
+      rs$soil <- soil
 
     })
     
@@ -443,8 +482,8 @@ shinyServer(
         }
         rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
         
-        conductivities <- rs$conductivities
-        hydraulics <- getSUF(rootsystem, conductivities)
+
+        hydraulics <- getSUF(rootsystem, rs$conductivities, rs$soil)
         
         rootsystem$suf <- as.vector(hydraulics$suf)
         rootsystem$suf1 <- as.vector(hydraulics$suf1)
@@ -453,10 +492,10 @@ shinyServer(
         rootsystem$jr <- as.vector(hydraulics$jr)
         rootsystem$psi <- as.vector(hydraulics$psi)
         rootsystem$jxl <- as.vector(hydraulics$jxl)
+        rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
         
         
         # Read the conductivity file
-        rs$conductivities <- conductivities
         rs$rootsystem <- rootsystem
         rs$dataset <- dataset
         rs$plant <- plant
@@ -494,6 +533,31 @@ shinyServer(
         )
       pl
     }, bg="transparent")
+    
+    
+    
+    
+    
+    output$soilPlot <- renderPlot({
+      
+      plot <- ggplot() +  theme_classic()
+      if(is.null(rs$soil)){return(plot)}
+      
+      pl <- ggplot(rs$soil, aes(z, psi, colour=psi)) + 
+        geom_line(size=2) + 
+        geom_point(size = 4) + 
+        geom_point(colour="white") +
+        theme_classic() + 
+        ylab("Soil water potential") + 
+        xlab("Depth [cm]") + 
+        coord_flip()+
+        theme(text = element_text(size=14),
+              panel.background = element_rect(fill = "transparent"), # or theme_blank()
+              plot.background = element_rect(fill = "transparent"),
+              axis.text.x = element_text(angle = 45, hjust = 1)
+        )
+      pl
+    }, bg="transparent")    
       
     
     # Plot the root system
@@ -505,6 +569,16 @@ shinyServer(
       
       mydata <- rs$rootsystem
 
+      soil <- ddply(mydata, .(round(z2)), summarise, psi = mean(psi_soil))
+      soil$z <- soil[,1]
+      soil$x <- min(mydata$x1) - 5
+      
+      plot <- plot +
+        geom_point(data = soil, aes(x, z, fill=psi), shape=22, size=4, colour="white") + 
+        scale_fill_gradientn(colours = cscale3, 
+                               name = "Soil water potential [hPa]",
+                               limits = range(soil))
+        
       if(input$plotroottype == 1){
         plot <- plot + 
         geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, colour=factor(type)), alpha=0.9, size=1.2)
