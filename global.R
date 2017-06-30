@@ -26,4 +26,5 @@ cscale2 <- c("#f1eef6","#d7b5d8","#df65b0","#dd1c77","#980043")
 cscale2 <- c("#a21d4d","lightgrey","#2a3e98")
 cscale3 <- c("#a1dab4","#41b6c4", "#2c7fb8", "#253494")
 
+psicollar_base <- -15000
 

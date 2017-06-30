@@ -13,7 +13,8 @@ shinyServer(
                          conductivities = NULL,
                          krs = NULL,
                          tact = NULL,
-                         soil = NULL)
+                         soil = NULL,
+                         evol = NULL)
     
     observe({
       fileName <- 'www/litterature.txt'
@@ -26,6 +27,17 @@ shinyServer(
       
     })  
 
+    observe({
+      if(is.null(rs$rootsystem)){return()}
+      types <- unique(rs$rootsystem$name)
+      ct_options <- list()
+      sel <- input$choosetype
+      if(length(sel) == 0) sel = types
+      for(ct in types) ct_options[[ct]] <- ct
+      updateSelectInput(session, "choosetype", choices = ct_options, selected=sel)       
+      
+    })
+    
     # Sliders for the root system SUF
     observe({
       if(is.null(rs$rootsystem)){return()}
@@ -74,17 +86,14 @@ shinyServer(
       # paste0(sel$order, " / ", sel$type)
     }) 
     
-    observeEvent(input$updateSoil, {
-      soil <- rs$soil
-      sel <- nearPoints(soil, input$plot2_click)
-      
+    
+    # Update the simulation with new transpiration values
+    
+    observeEvent(input$updateDemand, {
+
       rootsystem <- rs$rootsystem
       
-      soil$psi[soil$id == sel$id] <- as.numeric(input$x_input_soil)
-      soil$z[soil$id == sel$id] <- as.numeric(input$y_input_soil)
-      
-      
-      hydraulics <- getSUF(rootsystem, rs$conductivities, soil)
+      hydraulics <- getSUF(rootsystem, rs$conductivities, rs$soil, Psi_collar = psicollar_base * (input$psiCollar/100))
       
       rootsystem$suf <- as.vector(hydraulics$suf)
       rootsystem$jr <- as.vector(hydraulics$jr)
@@ -97,7 +106,39 @@ shinyServer(
       
       rs$rootsystem <- rootsystem
       rs$soil <- soil
+      rs$tact <- hydraulics$tact
       rs$krs <- hydraulics$krs
+      rs$evol <- rbind( rs$evol, data.frame(krs = hydraulics$krs, tact = hydraulics$tact))
+    })
+    
+    # Update the simulation with new soil values
+    observeEvent(input$updateSoil, {
+      soil <- rs$soil
+      sel <- nearPoints(soil, input$plot2_click)
+      
+      rootsystem <- rs$rootsystem
+      
+      soil$psi[soil$id == sel$id] <- as.numeric(input$x_input_soil)
+      soil$z[soil$id == sel$id] <- as.numeric(input$y_input_soil)
+      
+      
+      hydraulics <- getSUF(rootsystem, rs$conductivities, soil, Psi_collar = psicollar_base * (input$psiCollar/100))
+      
+      rootsystem$suf <- as.vector(hydraulics$suf)
+      rootsystem$jr <- as.vector(hydraulics$jr)
+      rootsystem$psi <- as.vector(hydraulics$psi)
+      rootsystem$suf1 <- as.vector(hydraulics$suf1)
+      rootsystem$kx <- hydraulics$kx
+      rootsystem$kr <- hydraulics$kr
+      rootsystem$jxl <- as.vector(hydraulics$jxl)
+      rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
+      
+      rs$rootsystem <- rootsystem
+      rs$soil <- soil
+      rs$tact <- hydraulics$tact
+      rs$krs <- hydraulics$krs
+      evol <- rs$evol
+      rs$evol <- rbind(evol, data.frame(krs = hydraulics$krs, tact = hydraulics$tact))
     })    
     
     # Get the click inside the conductivity graph
@@ -125,7 +166,7 @@ shinyServer(
       conds$y[conds$id == sel$id] <- as.numeric(input$y_input)
 
       
-      hydraulics <- getSUF(rootsystem, conds, rs$soil)
+      hydraulics <- getSUF(rootsystem, conds, rs$soil, Psi_collar = psicollar_base * (input$psiCollar/100))
 
       rootsystem$suf <- as.vector(hydraulics$suf)
       rootsystem$jr <- as.vector(hydraulics$jr)
@@ -136,9 +177,11 @@ shinyServer(
       rootsystem$jxl <- as.vector(hydraulics$jxl)
       rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
       
+      rs$tact <- hydraulics$tact
       rs$rootsystem <- rootsystem
       rs$conductivities <- conds
       rs$krs <- hydraulics$krs
+      rs$evol <- rbind(rs$evol, data.frame(krs = rs$krs, tact = rs$tact))
     })
       
     
@@ -249,141 +292,151 @@ shinyServer(
     
     observe({
       
-      ## READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
-      file.copy(from=paste0("www/modelparameter/Zea_mays_4_Leitner_2014.rparam"), to="www/param.rparam", overwrite = T)
-      file.copy(from=paste0("www/modelparameter/Zea_mays_4_Leitner_2014.pparam"), to="www/param.pparam", overwrite = T)
-      fileName <- 'www/param.rparam'
-      param <- read_file(fileName)
-      
-      param <- strsplit(param, "#")
-      dataset <- NULL
-      for(k in c(2:length(param[[1]]))){
-        spl <- strsplit(param[[1]][k], "\n")
-        type <- ""
-        name <- ""
-        for(i in c(1:length(spl[[1]]))){
-          temp <- spl[[1]][i]
-          pos <- regexpr("//", temp)
-          if(pos != -1) temp <- substr(temp, 0, pos-1)
-          if(nchar(temp) > 0){
-            temp <- strsplit(temp, "\t")
-            temp2 <- data.frame("type" = character(0), "name" = character(0), 
-                                "param" = character(0), "val1" = numeric(0), 
-                                "val2" = numeric(0), "val3" = numeric(0), stringsAsFactors = F)
-            
-            if(temp[[1]][1] == "type"){ type <- temp[[1]][2]
-            } else if(temp[[1]][1] == "name"){ name <- temp[[1]][2]
-            } else if(grepl("Param", temp[[1]][1])){
-            } else if(temp[[1]][1] == "tropism") {
-              temp2[[1,3]] <- "n_tropism"
-              temp2$val1 <- temp[[1]][3]
-              temp2$type <- type
-              temp2$name <- name
-              dataset <- rbind(dataset, temp2)
-              temp2$param <- "sigma_tropism"
-              temp2$val1 <- temp[[1]][4]
-              temp2$type <- type
-              temp2$name <- name
-              dataset <- rbind(dataset, temp2)  
-              temp2$param <- "tropism"
-              temp2$val1 <- temp[[1]][2]
-              temp2$type <- type
-              temp2$name <- name
-              dataset <- rbind(dataset, temp2)  
-            } else {
-              for(j in c(1:4)){
-                temp2[[1,j+2]] <- temp[[1]][j]
+      if(is.null(rs$rootsystem)){
+        ## READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
+        file.copy(from=paste0("www/modelparameter/Zea_maize.rparam"), to="www/param.rparam", overwrite = T)
+        file.copy(from=paste0("www/modelparameter/Zea_maize.pparam"), to="www/param.pparam", overwrite = T)
+        fileName <- 'www/param.rparam'
+        param <- read_file(fileName)
+        
+        param <- strsplit(param, "#")
+        dataset <- NULL
+        for(k in c(2:length(param[[1]]))){
+          spl <- strsplit(param[[1]][k], "\n")
+          type <- ""
+          name <- ""
+          for(i in c(1:length(spl[[1]]))){
+            temp <- spl[[1]][i]
+            pos <- regexpr("//", temp)
+            if(pos != -1) temp <- substr(temp, 0, pos-1)
+            if(nchar(temp) > 0){
+              temp <- strsplit(temp, "\t")
+              temp2 <- data.frame("type" = character(0), "name" = character(0), 
+                                  "param" = character(0), "val1" = numeric(0), 
+                                  "val2" = numeric(0), "val3" = numeric(0), stringsAsFactors = F)
+              
+              if(temp[[1]][1] == "type"){ type <- temp[[1]][2]
+              } else if(temp[[1]][1] == "name"){ name <- temp[[1]][2]
+              } else if(grepl("Param", temp[[1]][1])){
+              } else if(temp[[1]][1] == "tropism") {
+                temp2[[1,3]] <- "n_tropism"
+                temp2$val1 <- temp[[1]][3]
                 temp2$type <- type
                 temp2$name <- name
+                dataset <- rbind(dataset, temp2)
+                temp2$param <- "sigma_tropism"
+                temp2$val1 <- temp[[1]][4]
+                temp2$type <- type
+                temp2$name <- name
+                dataset <- rbind(dataset, temp2)  
+                temp2$param <- "tropism"
+                temp2$val1 <- temp[[1]][2]
+                temp2$type <- type
+                temp2$name <- name
+                dataset <- rbind(dataset, temp2)  
+              } else {
+                for(j in c(1:4)){
+                  temp2[[1,j+2]] <- temp[[1]][j]
+                  temp2$type <- type
+                  temp2$name <- name
+                }
+                dataset <- rbind(dataset, temp2)
               }
-              dataset <- rbind(dataset, temp2)
             }
           }
-        }
-      }        
-      
-
-      ## READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
-      fileName <- 'www/param.pparam'
-      data <- read_file(fileName)
-      # READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
-      plant <- NULL
-      spl <- strsplit(data, "\n")
-      for(i in c(1:length(spl[[1]]))){
-        temp <- spl[[1]][i]
-        if(nchar(temp) > 0){
-          temp <- strsplit(temp, "\t")
-          temp2 <- data.frame( "param" = character(0), "val1" = numeric(0), stringsAsFactors = F)
-          for(j in c(1:2)){
-            temp2[[1,j]] <- temp[[1]][j]
+        }        
+        
+  
+        ## READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
+        fileName <- 'www/param.pparam'
+        data <- read_file(fileName)
+        # READ THE PARAMETER FILE AND STORE THE DATA IN A DATAFRAME
+        plant <- NULL
+        spl <- strsplit(data, "\n")
+        for(i in c(1:length(spl[[1]]))){
+          temp <- spl[[1]][i]
+          if(nchar(temp) > 0){
+            temp <- strsplit(temp, "\t")
+            temp2 <- data.frame( "param" = character(0), "val1" = numeric(0), stringsAsFactors = F)
+            for(j in c(1:2)){
+              temp2[[1,j]] <- temp[[1]][j]
+            }
+            plant <- rbind(plant, temp2)
           }
-          plant <- rbind(plant, temp2)
+        }      
+        
+        colnames(plant) <- c("param", "val1")      
+        
+        
+        fileName <- 'www/params.txt'
+        params <- read.table(fileName, sep="\t", stringsAsFactors = F)
+        colnames(params) <- c("id", "name", "text")            
+  
+        # setwd("www/")
+        system("chmod 777 www/a.out")
+        system("www/a.out")  
+        rootsystem <- fread("www/rootsystem.txt", header = T)
+        # rootsystem2 <- fread("www/rootsystem2.txt", header = T)
+        conductivities <- read_csv("www/conductivities.csv")
+        
+        
+        orders <- unique(conductivities$order)
+        ids <- unique(conductivities$order_id)
+        rootsystem$name <- "root"
+        for(o in c(1:length(orders))){
+          rootsystem$name[rootsystem$type == ids[o]] <- orders[o]
         }
-      }      
-      
-      colnames(plant) <- c("param", "val1")      
-      
-      
-      fileName <- 'www/params.txt'
-      params <- read.table(fileName, sep="\t", stringsAsFactors = F)
-      colnames(params) <- c("id", "name", "text")            
-
-      # setwd("www/")
-      system("chmod 777 www/a.out")
-      system("www/a.out")  
-      rootsystem <- fread("www/rootsystem.txt", header = T)
-      # rootsystem2 <- fread("www/rootsystem2.txt", header = T)
-      
-      
-      
-      first <- rootsystem[rootsystem$node1ID == 0,]
-      nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
-      for(no in nodals_ids){
-        temp <- rootsystem[rootsystem$branchID == no][1]
-        # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
-        #
-        connection <- data.frame(node1ID = 0,
-                                 node2ID = temp$node1ID,
-                                 branchID = temp$branchID,
-                                 x1 = first$x1, y1 = first$y1, z1 = first$z1,
-                                 x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
-                                 radius = temp$radius,
-                                 length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
-                                 R = 0, G = 0, B = 0,
-                                 time = temp$time,
-                                 type = temp$type)
-        rootsystem <- rbind(rootsystem, connection)
+        
+        
+        first <- rootsystem[rootsystem$node1ID == 0,]
+        nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
+        for(no in nodals_ids){
+          temp <- rootsystem[rootsystem$branchID == no][1]
+          # rootsystem$node1ID[rootsystem$branchID == no][1] <- 0
+          #
+          connection <- data.frame(node1ID = 0,
+                                   node2ID = temp$node1ID,
+                                   branchID = temp$branchID,
+                                   x1 = first$x1, y1 = first$y1, z1 = first$z1,
+                                   x2 = temp$x1, y2 = temp$y1, z2 = temp$z1,
+                                   radius = temp$radius,
+                                   length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
+                                   R = 0, G = 0, B = 0,
+                                   time = temp$time,
+                                   type = temp$type,
+                                   name = temp$name)
+          rootsystem <- rbind(rootsystem, connection)
+        }
+        rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
+  
+        
+        
+        # setwd("../")
+        
+        soil <- read_csv("www/soil.csv")
+        
+        hydraulics <- getSUF(rootsystem, conductivities, soil, hetero = F, Psi_collar = psicollar_base * (input$psiCollar/100))
+        
+  
+        rootsystem$suf <- as.vector(hydraulics$suf)
+        rootsystem$suf1 <- as.vector(hydraulics$suf1)
+        rootsystem$kx <- hydraulics$kx
+        rootsystem$kr <- hydraulics$kr
+        rootsystem$jr <- as.vector(hydraulics$jr)
+        rootsystem$psi <- as.vector(hydraulics$psi)
+        rootsystem$jxl <- as.vector(hydraulics$jxl)
+        rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
+        
+        rs$conductivities <- conductivities
+        rs$rootsystem <- rootsystem
+        rs$dataset <- dataset
+        rs$plant <- plant
+        rs$params <- params
+        rs$krs <- hydraulics$krs
+        rs$tact <- hydraulics$tact
+        rs$soil <- soil
+        rs$evol <- data.frame(krs = rs$krs, tact = rs$tact)
       }
-      rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
-
-      
-      
-      # setwd("../")
-      
-      conductivities <- read_csv("www/conductivities.csv")
-      soil <- read_csv("www/soil.csv")
-      
-      hydraulics <- getSUF(rootsystem, conductivities, soil, hetero = F)
-      
-
-      rootsystem$suf <- as.vector(hydraulics$suf)
-      rootsystem$suf1 <- as.vector(hydraulics$suf1)
-      rootsystem$kx <- hydraulics$kx
-      rootsystem$kr <- hydraulics$kr
-      rootsystem$jr <- as.vector(hydraulics$jr)
-      rootsystem$psi <- as.vector(hydraulics$psi)
-      rootsystem$jxl <- as.vector(hydraulics$jxl)
-      rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
-      
-      rs$conductivities <- conductivities
-      rs$rootsystem <- rootsystem
-      rs$dataset <- dataset
-      rs$plant <- plant
-      rs$params <- params
-      rs$krs <- hydraulics$krs
-      rs$tact <- hydraulics$tact
-      rs$soil <- soil
-
     })
     
     
@@ -460,6 +513,14 @@ shinyServer(
         # setwd("www/")
         system("www/a.out")  
         rootsystem <- fread("www/rootsystem.txt", header = T)
+        
+        orders <- unique(rs$conductivities$order)
+        types <- unique(rs$conductivities$order_id)
+        print(types)
+        rootsystem$name <- "root"
+        for(o in c(1:length(orders))){
+          rootsystem$name[rootsystem$type == types[o]] <- orders[o]
+        }
         # setwd("../")
         
         # Connect the nodals to the first node
@@ -477,13 +538,14 @@ shinyServer(
                                    length = sqrt((first$x1-temp$x1)^2 + (first$y1-temp$y1)^2 + (first$z1-temp$z1)^2 ),
                                    R = 0, G = 0, B = 0,
                                    time = temp$time,
-                                   type = temp$type)
+                                   type = temp$type,
+                                   name = temp$name)
           rootsystem <- rbind(rootsystem, connection)
         }
         rootsystem <- rootsystem[order(rootsystem$node2ID, decreasing = F),]
         
 
-        hydraulics <- getSUF(rootsystem, rs$conductivities, rs$soil)
+        hydraulics <- getSUF(rootsystem, rs$conductivities, rs$soil, Psi_collar = psicollar_base * (input$psiCollar/100))
         
         rootsystem$suf <- as.vector(hydraulics$suf)
         rootsystem$suf1 <- as.vector(hydraulics$suf1)
@@ -501,6 +563,8 @@ shinyServer(
         rs$plant <- plant
         rs$krs <- hydraulics$krs
         rs$tact <- hydraulics$tact
+        evol <- rs$evol
+        rs$evol <- rbind(evol, data.frame(krs = rs$krs, tact = rs$tact))
     })
     
     
@@ -537,7 +601,35 @@ shinyServer(
     
     
     
+
+    # Plot the evolution between simulations
     
+    output$evolPlot <- renderPlot({
+
+      plot <- ggplot() +  theme_classic()
+      if(is.null(rs$evol)){return(plot)}
+
+      temp <- rs$evol
+      temp$id <- c(1:nrow(temp))
+      temp$var <- temp[[input$chooseEvol]]
+
+      pl <- ggplot(temp, aes(id, var, colour=id)) +
+        geom_line(size=2) +
+        geom_point(size = 4) +
+        geom_point(colour="white") +
+        theme_classic() +
+        ylab("Value") +
+        xlab("Simualution") +
+        theme(text = element_text(size=14),
+              panel.background = element_rect(fill = "transparent"), # or theme_blank()
+              plot.background = element_rect(fill = "transparent"),
+              axis.text.x = element_text(angle = 45, hjust = 1)
+        )
+      pl
+    }, bg="transparent")
+    
+    
+    #Plot the soil profile    
     output$soilPlot <- renderPlot({
       
       plot <- ggplot() +  theme_classic()
@@ -569,6 +661,8 @@ shinyServer(
       
       mydata <- rs$rootsystem
 
+      mydata <- mydata[mydata$name %in% input$choosetype,]
+      
       soil <- ddply(mydata, .(round(z2)), summarise, psi = mean(psi_soil))
       soil$z <- soil[,1]
       soil$x <- min(mydata$x1) - 5
@@ -581,7 +675,7 @@ shinyServer(
         
       if(input$plotroottype == 1){
         plot <- plot + 
-        geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, colour=factor(type)), alpha=0.9, size=1.2)
+        geom_segment(data = mydata, aes(x = x1, y = z1, xend = x2, yend = z2, colour=name), alpha=0.9, size=1.2)
       
       }else if(input$plotroottype == 2){
         plot <- plot + 
@@ -655,27 +749,27 @@ shinyServer(
       mydata$z1 <- round(mydata$z1, 0)
       
       if(input$plotdensitytype == 1){
-        dens <- ddply(mydata, .(z1, type), summarise, root = sum(length))  
+        dens <- ddply(mydata, .(z1, name), summarise, root = sum(length))  
         yl <- "total root length (cm)" 
       }else if(input$plotdensitytype == 2){
-        dens <- ddply(mydata, .(z1, type), summarise, root = sum(suf1))
+        dens <- ddply(mydata, .(z1, name), summarise, root = sum(suf1))
         yl <- "standart uptake fraction"
       }else if(input$plotdensitytype == 3){
-        dens <- ddply(mydata, .(z1, type), summarise, root = sum(jr))
+        dens <- ddply(mydata, .(z1, name), summarise, root = sum(jr))
         yl <- "Radial flow"
       }else if(input$plotdensitytype == 4){
-        dens <- ddply(mydata, .(z1, type), summarise, root = sum(jxl))
+        dens <- ddply(mydata, .(z1, name), summarise, root = sum(jxl))
         yl <- "Axial flow"
       }else if(input$plotdensitytype == 5){
-        dens <- ddply(mydata, .(z1, type), summarise, root = mean(psi))
+        dens <- ddply(mydata, .(z1, name), summarise, root = mean(psi))
         yl <- "Mean water potential"
       }
       
       
       
-      plot1 <- ggplot(data = dens, aes(x = z1, y = root, colour=factor(type))) +  
+      plot1 <- ggplot(data = dens, aes(x = z1, y = root, colour=name)) +  
         theme_classic() + 
-        geom_line(data = dens, aes(x = z1, y = root, colour=factor(type)), alpha=0.5) + 
+        geom_line(data = dens, aes(x = z1, y = root, colour=name), alpha=0.5) + 
         stat_smooth(se=F) + 
         coord_flip() +
         xlab("depth (cm)") +
@@ -877,6 +971,10 @@ shinyServer(
       p1 <- as.numeric(as.character(rs$krs))
       p1 <- round(p1, regexpr('[1-9]', p1)[[1]]) 
       temp[4,] <- c("Krs", p1, "[-]")
+      
+      p1 <- as.numeric(as.character(rs$tact))
+      p1 <- round(p1, regexpr('[1-9]', p1)[[1]]) 
+      temp[5,] <- c("T_act", p1, "[-]")
       
       temp
     })  

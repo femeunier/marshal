@@ -52,7 +52,19 @@ shinyUI(fluidPage(
               )
             )
         ),
-        tabPanel("Soil water potential",
+        tabPanel("Environment",
+            fluidRow(
+                column(8, 
+                  sliderInput("psiCollar", "Evoporative demand:", min=0, max=500, value=100)
+                ),
+                column(4, 
+                  actionButton(inputId = "updateDemand", label="", 
+                               icon("refresh"), 
+                               style="color: #fff; background-color: #337ab7; border-color: #2e6da4")
+                  )
+                ),
+            tags$hr(),  
+            h4("Soil water potential"),
             plotOutput("soilPlot", 
                        height = "500px",
                        click = "plot2_click"
@@ -87,8 +99,9 @@ shinyUI(fluidPage(
                                                                                              "Axial fluxes" = 4,
                                                                                              "Radial fluxes" = 5,
                                                                                              "Radial conductivity" = 6,
-                                                                                             "Axial conductance" = 7), selected=2) # updated with the datafile
-                        ),
+                                                                                             "Axial conductance" = 7), selected=2), # updated with the datafile
+                          selectInput("choosetype", label = NA, choices = c(""), selected = NULL, multiple = TRUE)
+                          ),
                         column(6,
                           conditionalPanel(
                             condition = "input.plotroottype == 2",
@@ -123,6 +136,15 @@ shinyUI(fluidPage(
                   tags$hr(),
                   value=2
               ),
+             tabPanel("Simulations evolution",
+                      tags$hr(),
+                      selectInput("chooseEvol", label = "What to display", choices = c("Root system conductivity" = "krs",
+                                                                                            "Transpiration" = "tact")), # updated with the datafile
+                      plotOutput("evolPlot"),
+                      helpText("This plot show the value of Krs or Tact for the different simulation"),
+                      tags$hr(),
+                      value=2
+             ),             
              tabPanel("Download data",
                   tags$hr(),
                   tableOutput('table_results') ,
