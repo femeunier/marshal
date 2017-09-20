@@ -14,7 +14,9 @@ shinyServer(
                          krs = NULL,
                          tact = NULL,
                          soil = NULL,
-                         evol = NULL)
+                         evol = NULL,
+                         krs_first = NULL,
+                         krs_act = NULL)
     
     observe({
       fileName <- 'www/litterature.txt'
@@ -105,7 +107,6 @@ shinyServer(
       rootsystem$psi_soil <- as.vector(hydraulics$psi_soil)
       
       rs$rootsystem <- rootsystem
-      rs$soil <- soil
       rs$tact <- hydraulics$tact
       rs$krs <- hydraulics$krs
       rs$evol <- rbind( rs$evol, data.frame(krs = hydraulics$krs, tact = hydraulics$tact))
@@ -373,8 +374,13 @@ shinyServer(
         colnames(params) <- c("id", "name", "text")            
   
         # setwd("www/")
-        system("chmod 777 www/a.out")
-        system("www/a.out")  
+        if(Sys.info()['sysname'] == "Darwin"){
+          system("chmod 777 www/a-mac.out")
+          system("www/a-mac.out")  
+        }else{
+          system("chmod 777 www/a.out")
+          system("www/a.out")  
+        }
         rootsystem <- fread("www/rootsystem.txt", header = T)
         # rootsystem2 <- fread("www/rootsystem2.txt", header = T)
         conductivities <- read_csv("www/conductivities.csv")
@@ -433,7 +439,9 @@ shinyServer(
         rs$plant <- plant
         rs$params <- params
         rs$krs <- hydraulics$krs
+        rs$krs_first <- hydraulics$krs
         rs$tact <- hydraulics$tact
+        rs$tact_first <- hydraulics$tact
         rs$soil <- soil
         rs$evol <- data.frame(krs = rs$krs, tact = rs$tact)
       }
@@ -511,19 +519,23 @@ shinyServer(
         cat(text, file="www/param.pparam")
 
         # setwd("www/")
-        system("www/a.out")  
+        if(Sys.info()['sysname'] == "Darwin"){
+          system("www/a-mac.out")  
+        }else{
+          system("chmod 777 www/a.out")
+          system("www/a.out")  
+        }        
         rootsystem <- fread("www/rootsystem.txt", header = T)
         
         orders <- unique(rs$conductivities$order)
-        types <- unique(rs$conductivities$order_id)
-        print(types)
+        ids <- unique(rs$conductivities$order_id)
         rootsystem$name <- "root"
         for(o in c(1:length(orders))){
-          rootsystem$name[rootsystem$type == types[o]] <- orders[o]
+          rootsystem$name[rootsystem$type == ids[o]] <- orders[o]
         }
-        # setwd("../")
         
-        # Connect the nodals to the first node
+        
+        first <- rootsystem[rootsystem$node1ID == 0,]
         nodals_ids <- unique(rootsystem$branchID[rootsystem$type == 4 | rootsystem$type == 5])
         for(no in nodals_ids){
           temp <- rootsystem[rootsystem$branchID == no][1]
@@ -583,10 +595,12 @@ shinyServer(
       
       temp <- filter(rs$conductivities, order == input$roottype1) 
       temp$x[temp$x > 50] <- 50
+      
       pl <- ggplot(temp, aes(x, y, colour=type)) + 
         geom_line(size=2) + 
         geom_point(size = 4) + 
         geom_point(colour="white") +
+        # geom_hline(data=cond_range, aes(yintercept = value)) +
         theme_classic() + 
         xlab("Distance from the tip (cm)") + 
         ylab("Conductivity / conductance") + 
@@ -611,7 +625,11 @@ shinyServer(
 
       temp <- rs$evol
       temp$id <- c(1:nrow(temp))
-      temp$var <- temp[[input$chooseEvol]]
+      if(input$chooseEvol == "krs"){
+        temp$var <- temp[[input$chooseEvol]] / rs$krs_first
+      }else{
+        temp$var <- temp[[input$chooseEvol]] / rs$tact_first
+      }
 
       pl <- ggplot(temp, aes(id, var, colour=id)) +
         geom_line(size=2) +

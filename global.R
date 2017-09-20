@@ -28,3 +28,5 @@ cscale3 <- c("#a1dab4","#41b6c4", "#2c7fb8", "#253494")
 
 psicollar_base <- -15000
 
+cond_range <- data.frame(value=c(1e-4, 1e-8, 1e1, 1e-5), type=c("kr", "kr", "kx", "kx"))
+
